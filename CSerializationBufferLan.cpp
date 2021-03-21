@@ -1,20 +1,18 @@
 #include "CSerializationBufferLan.h"
 
-int debugIndex = 0;
-
 CMemoryPoolTLS<CSerializationBuffer> CSerializationBuffer::memoryPool;
 
 CSerializationBuffer::CSerializationBuffer()
 {
-	chpBufferPtr = new char[eBUFFER_DEFAULT];
-	chpContentBufferPtr = chpWritePos = chpReadPos = chpBufferPtr + 2;
-	iBufferSize = eBUFFER_DEFAULT;
-	refCount = 0;
+	mpBuffer = new char[eBUFFER_DEFAULT];
+	mpContentBuffer = mpWritePos = mpReadPos = mpBuffer + 2;
+	mBufferSize = eBUFFER_DEFAULT;
+	mRefCount = 0;
 }
 
 CSerializationBuffer::~CSerializationBuffer()
 {
-	delete chpBufferPtr;
+	delete mpBuffer;
 }
 
 void CSerializationBuffer::Release()
@@ -24,115 +22,93 @@ void CSerializationBuffer::Release()
 
 void CSerializationBuffer::Clear()
 {
-	chpWritePos = chpReadPos = chpBufferPtr + 2;
-	bEncodeFlag = false;
+	mpWritePos = mpReadPos = mpBuffer + 2;
+	mEncodeFlag = false;
 }
 
 int CSerializationBuffer::GetBufferSize()
 {
-	return iBufferSize;
+	return mBufferSize;
 }
 
 char* CSerializationBuffer::GetBufferPtr()
 {
-	return chpBufferPtr;
+	return mpBuffer;
 }
 
 char* CSerializationBuffer::GetContentBufPtr()
 {
-	return chpContentBufferPtr;
+	return mpContentBuffer;
 }
 
 int CSerializationBuffer::MoveWritePos(int iSize)
 {
-	chpWritePos += iSize;
+	mpWritePos += iSize;
 	return iSize;
 }
 
 int CSerializationBuffer::MoveReadPos(int iSize)
 {
-	chpReadPos += iSize;
+	mpReadPos += iSize;
 	return iSize;
 }
 
 int CSerializationBuffer::AddRef()
 {
-	InterlockedIncrement((long*)&refCount);
-	return refCount;
+	InterlockedIncrement((long*)&mRefCount);
+	return mRefCount;
 }
 
 void CSerializationBuffer::DeqRef()
 {
-	if (InterlockedDecrement((long*)&refCount) == 0)
+	if (InterlockedDecrement((long*)&mRefCount) == 0)
 	{
 		Free();
 	}
 }
 
-CSerializationBuffer& CSerializationBuffer::operator=(CSerializationBuffer& clSrcPacket)
-{
-	// TODO: 여기에 return 문을 삽입합니다.
-	return *this;
-}
-
-//int CSerializationBuffer::GetData(char* chpDest, int iSize)
-//{
-//	memcpy(chpDest, chpReadPos, iSize);
-//	chpReadPos += iSize;
-//	return *chpDest;
-//}
-//
-//int CSerializationBuffer::PutData(char* chpSrc, int iSrcSize)
-//{
-//	memcpy(chpWritePos, chpSrc, iSrcSize);
-//	chpWritePos += iSrcSize;
-//	return *chpSrc;
-//}
-
 void CSerializationBuffer::PutContentData(char* chpSrc, int iSize)
 {
-	memcpy(chpWritePos, chpSrc, iSize);
-	chpWritePos += iSize;
+	memcpy(mpWritePos, chpSrc, iSize);
+	mpWritePos += iSize;
 }
 
 void CSerializationBuffer::GetContentData(char* chpSrc, int iSize)
 {
-	memcpy(chpSrc, chpReadPos, iSize);
-	chpReadPos += iSize;
+	memcpy(chpSrc, mpReadPos, iSize);
+	mpReadPos += iSize;
 }
 
 void CSerializationBuffer::PutNetworkHeader(char* chpSrc, int iSize)
 {
-	memcpy(chpBufferPtr, chpSrc, iSize);
+	memcpy(mpBuffer, chpSrc, iSize);
 }
 
 void CSerializationBuffer::GetNetworkHeader(char* chpSrc, int iSize)
 {
-	memcpy(chpSrc, chpBufferPtr, iSize);
+	memcpy(chpSrc, mpBuffer, iSize);
 }
 
 int CSerializationBuffer::GetContentUseSize()
 {
-	int retVal = chpWritePos - chpReadPos;
+	int retVal = mpWritePos - mpReadPos;
 	return retVal;
 }
 
 int CSerializationBuffer::GetTotalUseSize()
 {
-	return chpWritePos - chpBufferPtr;
+	return mpWritePos - mpBuffer;
 }
 
 int CSerializationBuffer::GetFreeSize()
 {
-	return chpBufferPtr + iBufferSize - chpWritePos;
+	return mpBuffer + mBufferSize - mpWritePos;
 }
 
 CSerializationBuffer* CSerializationBuffer::Alloc()
 {
 	CSerializationBuffer* serialBufPtr = memoryPool.Alloc();
-
-	InterlockedIncrement((LONG*)&debugIndex);
-
+	
 	serialBufPtr->Clear();
 
 	serialBufPtr->AddRef();
@@ -142,6 +118,5 @@ CSerializationBuffer* CSerializationBuffer::Alloc()
 
 bool CSerializationBuffer::Free()
 {
-	InterlockedDecrement((LONG*)&debugIndex);
 	return memoryPool.Free(this);
 }
